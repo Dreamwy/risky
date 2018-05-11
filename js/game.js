@@ -262,7 +262,8 @@ playGame.prototype = {
         // localStorage.setItem(gameOptions.localStorageName,JSON.stringify({
         //     score: Math.max(savedData.score, this.score)
         // }));
-        setdata(Math.max(bestScore, this.score));
+        var a  = Math.max(bestScore, this.score);
+        setdata(a);
         this.runUpdate = false;
         game.input.onDown.remove(this.changeBall, this);
         this.rotationSpeed = 0;
