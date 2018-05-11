@@ -340,10 +340,9 @@ function setdata(score){
             "function": callFunction,
             "args": callArgs
         };
-
+        console.log("setdata call:" + callArgs);
         neb.api.getAccountState(params.from).then(function (resp) {
             params.nonce = parseInt(resp.nonce) + 1;
-            console.log("setdata call:" + params.nonce);
             submit(params);
         }).catch(function (err) {
             //cbSearch(err)
