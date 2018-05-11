@@ -1,3 +1,5 @@
+  
+
 var game;
 var savedData;
 
@@ -8,7 +10,7 @@ var gameOptions = {
     ballDistance: 120,
     rotationSpeed: 4,
     angleRange: [25, 155],
-    localStorageName: "riskystepsgame"
+    // localStorageName: "riskystepsgame"
 }
 
 window.onload = function() {
@@ -66,26 +68,54 @@ preload.prototype = {
     }
 }
 
+
 var titleScreen = function(game){};
 
 titleScreen.prototype = {
     create: function(){
-        savedData = localStorage.getItem(gameOptions.localStorageName) == null ? {score: 0} : JSON.parse(localStorage.getItem(gameOptions.localStorageName));
+        // savedData = localStorage.getItem(gameOptions.localStorageName) == null ? {score: 0} : JSON.parse(localStorage.getItem(gameOptions.localStorageName));
         var title = game.add.image(game.width / 2, 50, "title");
         title.anchor.set(0.5, 0);
-        var playButton = game.add.button(game.width / 2, game.height / 2, "playbutton", this.startGame);
-        playButton.anchor.set(0.5);
-        var tween = game.add.tween(playButton.scale).to({
+        this.playButton = game.add.button(game.width / 2, game.height / 2, "playbutton", this.startGame);
+        this.playButton.anchor.set(0.5);
+        this.playButton.alive = false;
+        var tween = game.add.tween(this.playButton.scale).to({
             x: 0.8,
             y: 0.8
         }, 500, Phaser.Easing.Linear.None, true, 0, -1);
         tween.yoyo(true);
-        game.add.bitmapText(game.width / 2, game.height - 50, "whitefont", savedData.score.toString(), 60).anchor.set(0.5, 1);
+
+        this.bscore = game.add.bitmapText(game.width / 2, game.height - 50, "whitefont", "0", 60);
+        this.bscore.anchor.set(0.5, 1);
         game.add.bitmapText(game.width / 2, game.height - 110, "font", "BEST SCORE", 48).anchor.set(0.5, 1);
+        this.ohnoText = game.add.bitmapText(game.width / 2, game.height - 500, "whitefont", "please unlock your wallet!!", 48);
+        this.ohnoText.anchor.set(0.5);
+        
+        var tweent = game.add.tween(this.ohnoText.scale).to({
+            x: 0.8,
+            y: 0.8
+        }, 500, Phaser.Easing.Linear.None, true, 0, -1);
+        tweent.yoyo(true);
     },
     startGame: function(){
-        game.state.start("PlayGame");
+        if(!isLock){
+             game.state.start("PlayGame");
+        }
+
+        console.log("startGame");
+    },
+    update: function(){
+
+        this.bscore.text = bestScore.toString();
+        if(isLock){
+            this.ohnoText.visible = true;
+    
+        }else{
+            this.ohnoText.visible = false;
+            
+        }
     }
+    
 }
 
 var playGame = function(game){};
@@ -229,9 +259,10 @@ playGame.prototype = {
         var finalSteps = this.steps - gameOptions.visibleTargets;
         this.scoreText.text = this.score.toString() + " * " + finalSteps + " = " + (this.score * finalSteps).toString();
         this.score *= finalSteps;
-        localStorage.setItem(gameOptions.localStorageName,JSON.stringify({
-            score: Math.max(savedData.score, this.score)
-        }));
+        // localStorage.setItem(gameOptions.localStorageName,JSON.stringify({
+        //     score: Math.max(savedData.score, this.score)
+        // }));
+        setdata(Math.max(bestScore, this.score));
         this.runUpdate = false;
         game.input.onDown.remove(this.changeBall, this);
         this.rotationSpeed = 0;
@@ -243,4 +274,94 @@ playGame.prototype = {
             game.state.start("PlayGame");
         },this);
     }
+
+}
+
+// { chainId: 1, name: "Mainnet", url: "https://mainnet.nebulas.io" },
+// { chainId: 1001, name: "Testnet", url: "https://testnet.nebulas.io" },
+// { chainId: 100, name: "Local Nodes", url: "http://127.0.0.1:8685"}
+ var dappAddress = "n1tRSqhEdViLqtvZ2SyxUWJ5wdkMfPcT3X3";
+ var url = "https://mainnet.nebulas.io"
+var chainId=1;
+var nebulas;
+var Account;
+var neb;
+var isLock = true;
+var bestScore = 0;
+var account;
+var Transaction;
+function initHeyue(e,n){
+        account = e;
+        isLock = false;
+        nebulas = n;
+        Account = nebulas.Account;
+        Transaction = nebulas.Transaction;
+        neb = new nebulas.Neb();
+        neb.setRequest(new nebulas.HttpRequest(url));
+        getdata();
+}
+
+function getdata(){
+        console.log("getdata");
+        var from = account.getAddressString();
+        var value = 0
+        var nonce = 0
+        var gas_price = 1000000
+        var gas_limit = 2000000
+        var callFunction = "get";
+        // var callArgs = "[\"" + $("#search_value").val() + "\"]"; //in the form of ["args"]
+        var contract = {
+            "function": callFunction,
+            // "args": callArgs
+        };
+
+        neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+            console.log("call:" + resp.result);
+            var respObject = JSON.parse(resp.result)
+            bestScore = respObject.score
+            console.log("call:" + bestScore);
+        }).catch(function (err) {
+            //cbSearch(err)
+            console.log("error:" + err.message);
+        });
+}
+
+
+function setdata(score){
+        var params = {};
+        params.from = account.getAddressString();
+        params.value = 0
+        params.nonce = 0
+        params.gas_price = 1000000
+        params.gas_limit = 2000000
+        var callFunction = "set";
+        var callArgs = "["+"\"from\""+","+score+"]"; //in the form of ["args"]
+        params.contract = {
+            "function": callFunction,
+            "args": callArgs
+        };
+
+        neb.api.getAccountState(params.from).then(function (resp) {
+            params.nonce = parseInt(resp.nonce) + 1;
+            console.log("setdata call:" + params.nonce);
+            submit(params);
+        }).catch(function (err) {
+            //cbSearch(err)
+            console.log("setdata error:" + err.message);
+        });
+        
+}
+
+
+function submit(params) {
+    var gTx = new Transaction(chainId, 
+                account,
+                dappAddress, params.value, params.nonce, params.gas_price, params.gas_limit, params.contract);
+        gTx.signTransaction();
+        neb.api.sendRawTransaction(gTx.toProtoString()).then(function (resp) {
+            console.log("submit call:" + resp.result);
+        }).catch(function (err) {
+            //cbSearch(err)
+            console.log("submit error:" + err.message);
+        });
 }
