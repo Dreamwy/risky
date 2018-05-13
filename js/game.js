@@ -26,6 +26,7 @@ window.onload = function() {
     game.state.add("TitleScreen", titleScreen);
     game.state.add("PlayGame", playGame);
     game.state.start("Boot");
+    initHeyue();
 }
 
 var boot = function(game){};
@@ -263,7 +264,9 @@ playGame.prototype = {
         //     score: Math.max(savedData.score, this.score)
         // }));
         var a  = Math.max(bestScore, this.score);
-        setdata(a);
+        if(a>bestScore){
+            setdata(a);
+        }
         this.runUpdate = false;
         game.input.onDown.remove(this.changeBall, this);
         this.rotationSpeed = 0;
@@ -285,52 +288,63 @@ playGame.prototype = {
  var url = "https://mainnet.nebulas.io"
 var chainId=1;
 var nebulas;
-var Account;
 var neb;
 var isLock = true;
 var bestScore = 0;
 var account;
 var Transaction;
-function initHeyue(e,n){
-        account = e;
+var nebPay;
+function initHeyue(){
         isLock = false;
-        nebulas = n;
-        Account = nebulas.Account;
+        nebulas = require("nebulas");
+        account = nebulas.Account;
         Transaction = nebulas.Transaction;
+        var NebPay = require("nebpay");     //https://github.com/nebulasio/nebPay
+        nebPay = new NebPay();
         neb = new nebulas.Neb();
         neb.setRequest(new nebulas.HttpRequest(url));
         getdata();
 }
 
 function getdata(){
-        console.log("getdata");
-        var from = account.getAddressString();
-        var value = 0
+        //var from = account.getAddressString();
+        var from = "NAS"
+        var value = "0"
         var nonce = 0
         var gas_price = 1000000
         var gas_limit = 2000000
         var callFunction = "get";
-        // var callArgs = "[\"" + $("#search_value").val() + "\"]"; //in the form of ["args"]
+        var callArgs = ""; //in the form of ["args"]
         var contract = {
             "function": callFunction,
             // "args": callArgs
         };
 
-        neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
-            console.log("call:" + resp.result);
-            var respObject = JSON.parse(resp.result)
-            bestScore = respObject.score
-            console.log("call:" + bestScore);
-        }).catch(function (err) {
-            //cbSearch(err)
-            console.log("error:" + err.message);
+        // neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+        //     console.log("call:" + resp.result);
+        //     var respObject = JSON.parse(resp.result)
+        //     bestScore = respObject.score
+        //     console.log("call:" + bestScore);
+        // }).catch(function (err) {
+        //     //cbSearch(err)
+        //     console.log("error:" + err.message);
+        // });
+        nebPay.simulateCall(dappAddress, value, callFunction, callArgs, {    //使用nebpay的call接口去调用合约,
+            listener: function (resp) {
+                var respObject = JSON.parse(resp.result)
+                bestScore = respObject.score
+                console.log("getdata:" + bestScore);
+            }        //设置listener, 处理交易返回信息
         });
 }
 
 
+
+
+
 function setdata(score){
         var params = {};
-        params.from = account.getAddressString();
+        // params.from = account.getAddressString();
         params.value = 0
         params.nonce = 0
         params.gas_price = 1000000
@@ -342,26 +356,33 @@ function setdata(score){
             "args": callArgs
         };
         console.log("setdata call:" + callArgs);
-        neb.api.getAccountState(params.from).then(function (resp) {
-            params.nonce = parseInt(resp.nonce) + 1;
-            submit(params);
-        }).catch(function (err) {
-            //cbSearch(err)
-            console.log("setdata error:" + err.message);
+        // neb.api.getAccountState(params.from).then(function (resp) {
+        //     params.nonce = parseInt(resp.nonce) + 1;
+        //     submit(params);
+        // }).catch(function (err) {
+        //     //cbSearch(err)
+        //     console.log("setdata error:" + err.message);
+        // });
+
+        nebPay.call(dappAddress, params.value, callFunction, callArgs, {    //使用nebpay的call接口去调用合约,
+            listener: function (resp) {
+                console.log("setdata resp: " + resp.result);
+            }              
         });
+
         
 }
 
 
-function submit(params) {
-    var gTx = new Transaction(chainId, 
-                account,
-                dappAddress, params.value, params.nonce, params.gas_price, params.gas_limit, params.contract);
-        gTx.signTransaction();
-        neb.api.sendRawTransaction(gTx.toProtoString()).then(function (resp) {
-            console.log("submit call:" + resp.result);
-        }).catch(function (err) {
-            //cbSearch(err)
-            console.log("submit error:" + err.message);
-        });
-}
+// function submit(params) {
+//     var gTx = new Transaction(chainId, 
+//                 account,
+//                 dappAddress, params.value, params.nonce, params.gas_price, params.gas_limit, params.contract);
+//         gTx.signTransaction();
+//         neb.api.sendRawTransaction(gTx.toProtoString()).then(function (resp) {
+//             console.log("submit call:" + resp.result);
+//         }).catch(function (err) {
+//             //cbSearch(err)
+//             console.log("submit error:" + err.message);
+//         });
+// }
